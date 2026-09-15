@@ -1,357 +1,329 @@
 # KBDC-WWTP
 
-**Knowledge-Embedded Baseline Dosing Control for risk-constrained external-carbon optimization in wastewater treatment**
+**Knowledge-Embedded Baseline Dosing Control for Risk-Constrained Carbon Optimization in Wastewater Treatment**
 
 Research code associated with the manuscript:
 
-**Knowledge-embedded learning of conservative human dosing baselines for risk-constrained carbon optimization in wastewater nitrogen removal**
+**Expert Prior Knowledge Embedded Machine Learning for Carbon Source Optimization in Wastewater Treatment Systems**
 
-KBDC is a knowledge-embedded and risk-constrained framework for external-carbon
-dosing in wastewater treatment plants (WWTPs). Instead of treating historical
-operator dosing as an optimal carbon-demand target, KBDC interprets historical
-dosing as a conservative operational baseline that may contain both necessary
-process demand and a releasable safety margin.
+KBDC is a knowledge-embedded and risk-constrained framework for external-carbon dosing in wastewater treatment plants (WWTPs).
 
-The framework combines wastewater-process-informed state representation,
-baseline reconstruction, input-reliability assessment, nitrogen-risk evaluation,
-risk-constrained dosing adjustment, continuity control, and weekly posterior
-feedback.
+Instead of treating historical operator dosing as an optimal carbon-demand target, KBDC interprets historical dosing as a **conservative operational baseline** that may contain both necessary process demand and a releasable safety margin.
+
+The framework combines process-informed state representation, machine-learning baseline reconstruction, input-reliability assessment, nitrogen-risk evaluation, risk-constrained dosing adjustment, continuity control, and weekly posterior feedback.
 
 ---
 
-## Research concept
+## Overview
 
-Historical operator actions contain valuable process knowledge, but they may also
-reflect risk aversion, operational inertia, and conservative safety margins.
-Directly learning and reproducing these actions can therefore preserve unnecessary
-carbon dosing.
+The central idea of KBDC is:
 
-KBDC addresses this problem through the following logic:
+> **Historical operator experience is used as a safety anchor rather than as an assumed optimal control target.**
 
-```text
-Historical operator dosing
-        ↓
-Conservative operational baseline
-        ↓
-Process-informed state representation
-        ↓
-Baseline reconstruction with machine learning
-        ↓
-Input-reliability assessment (VFC / QC)
-        ↓
-Nitrogen-risk evaluation
-        ↓
-Reduce / Retain / Protect decision
-        ↓
-Continuity correction
-        ↓
-Daily KBDC recommendation
-        ↓
-Weekly posterior feedback
-        ↓
-Next-week parameter adaptation
-The aim is not to predict an assumed optimal dose directly. Instead, the learned
-historical baseline acts as a safety anchor, from which conservative dosing margin
-is released only when nitrogen risk and input reliability permit.
+KBDC first reconstructs the conservative operator-encoded dosing baseline and then determines whether part of the embedded safety margin can be released according to nitrogen safety and input reliability.
 
-Study workflow
-The code repository follows the main analytical workflow of the manuscript and
-Supplementary Information:
+### Core components
 
-Operational data
-      │
-      ▼
-01  Leakage-aware preprocessing
-      │
-      ▼
-02  Process-informed feature construction
-      │
-      ▼
-03  Baseline model benchmarking and selection
-      │
-      ├──────────────► 04  SHAP attribution
-      │
-      ├──────────────► 05  Robustness analysis + VFC
-      │
-      └──────────────► 06  Quantile-GBR diagnostic
-                              │
-                              ▼
-                    07  Sequential KBDC control
-                              │
-                              ▼
-                    08  KNN historical reference
-                         and field validation
-The repository is organized as modular research scripts rather than as a single
-unattended end-to-end program. This design reflects the actual study workflow,
-especially the sequential control, field-QC, and weekly-feedback stages.
+- Leakage-aware temporal preprocessing
+- Wastewater-process-informed state representation
+- Conservative baseline reconstruction
+- Eight-model benchmark
+- SHAP attribution analysis
+- Quantile-GBR historical-domain diagnostics
+- Input-robustness assessment
+- Virtual Flow Checking (VFC)
+- QC-assisted reliability gating
+- Risk-constrained Reduce / Retain / Protect control
+- Continuity correction
+- Weekly posterior feedback
+- KNN-matched historical reference
+- Prospective field-validation analysis
 
-Repository structure
-KBDC-WWTP/
-│
-├── README.md
-├── requirements.txt
-├── .gitignore
-│
-├── 01_preprocessing.py
-├── 02_process_features.py
-├── 03_model_benchmark.py
-├── 04_shap_attribution.py
-├── 05_robustness_vfc.py
-├── 06_quantile_gbr.py
-├── 07_kbdc_sequential_control.py
-├── 08_knn_validation.py
-│
-└── data/
-Code modules
-01_preprocessing.py
-Implements leakage-aware preprocessing of the historical WWTP dataset.
+---
+
+## Research workflow
+
+```mermaid
+flowchart TD
+    A[Historical operational data] --> B[Leakage-aware preprocessing]
+    B --> C[Process-informed state representation]
+    C --> D[Baseline model benchmarking]
+    D --> E[Retained process-informed GBR model]
+
+    E --> F[SHAP attribution]
+    E --> G[Robustness and VFC analysis]
+    E --> H[Quantile-GBR diagnostic models]
+
+    I[Daily pre-dosing inputs] --> J[VFC / QC reliability gate]
+    G --> J
+
+    J --> K[Confirmed / corrected TREAT_FLOW]
+    K --> L[Daily process-informed state reconstruction]
+
+    E --> M[Daily GBR baseline reconstruction]
+    L --> M
+
+    H --> N[Historical-domain plausibility check]
+    M --> N
+
+    L --> O[Nitrogen-risk assessment]
+
+    J --> P{KBDC decision}
+    M --> P
+    N --> P
+    O --> P
+
+    P -->|Low risk| Q[Reduce]
+    Q --> R[Continuity correction]
+    R --> S[Daily KBDC recommendation]
+
+    P -->|Medium risk| T[Retain]
+    T --> S
+
+    P -->|High risk| U[Protect]
+    U --> S
+
+    A --> V[KNN historical reference]
+    V --> W[Prospective field validation]
+    S --> W
+
+    W --> X[Weekly posterior feedback]
+    X --> Y[Next-week parameter update]
+    Y -->|Applied next week| P
+```
+
+
+The workflow is implemented as **modular research scripts**, rather than as a single unattended end-to-end program. This reflects the actual study design, particularly the field-QC and weekly-feedback stages.
+
+---
+
+## Repository structure
+
+| File | Main purpose |
+|---|---|
+| `01_preprocessing.py` | Leakage-aware preprocessing and chronological data partitioning |
+| `02_process_features.py` | Process-informed state representation |
+| `03_model_benchmark.py` | Benchmarking of eight regression model families |
+| `04_shap_attribution.py` | SHAP-based model interpretation |
+| `05_robustness_vfc.py` | Input robustness, treated-flow anomalies, and VFC |
+| `06_quantile_gbr.py` | P20/P50/P80 Quantile-GBR diagnostics |
+| `07_kbdc_sequential_control.py` | Sequential KBDC control and weekly feedback |
+| `08_knn_validation.py` | KNN historical reference and field-validation analysis |
+| `requirements.txt` | Python dependencies used by the released code |
+| `data/` | Input data used by the corresponding analysis scripts |
+
+---
+
+## Code-to-paper mapping
+
+The public code follows the scientific organization of the manuscript and Supplementary Information.
+
+| Code | Analysis | Supplementary Information |
+|---|---|---|
+| `01_preprocessing.py` | Data preparation and leakage control | Text S1 |
+| `02_process_features.py` | Process-informed state representation | Text S2 |
+| `03_model_benchmark.py` | Baseline learning and model comparison | Text S3 |
+| `04_shap_attribution.py` | SHAP attribution | Text S4 |
+| `06_quantile_gbr.py` | Quantile-GBR diagnostic | Text S5 |
+| `05_robustness_vfc.py` | Input robustness and VFC | Text S6 |
+| `07_kbdc_sequential_control.py` | Risk-constrained dosing control and weekly feedback | Texts S7-S8 |
+| `08_knn_validation.py` | KNN reference and validation | Texts S9-S10 |
+
+---
+
+## Code modules
+
+<details>
+<summary><b>01_preprocessing.py — Leakage-aware preprocessing</b></summary>
+
+Implements preprocessing of the historical WWTP operational dataset.
 
 Main functions include:
 
-chronological data partitioning;
+- chronological data partitioning;
+- variable-specific missing-value handling;
+- training-only preprocessing;
+- training-only outlier screening;
+- deployable-variable screening;
+- target-leakage prevention;
+- preparation of model-ready datasets.
 
-training-only preprocessing;
+All data-dependent preprocessing statistics are estimated from the training segment and then fixed for later held-out and validation data.
 
-variable-specific missing-value handling;
+</details>
 
-training-only outlier screening;
+<details>
+<summary><b>02_process_features.py — Process-informed state representation</b></summary>
 
-prevention of target leakage;
+Constructs wastewater-process-informed descriptors representing the pre-dosing operating state.
 
-deployable-variable screening;
+The representation covers:
 
-preparation of model-ready datasets.
+- hydraulic scale and low-flow pressure;
+- apparent carbon-nitrogen limitation;
+- delayed nitrogen-safety feedback;
+- influent nitrogen pressure relative to sludge-associated support.
 
-Data-dependent preprocessing statistics are estimated from the training segment
-and then fixed for later held-out and validation data.
+Boundary-relative nitrogen descriptors are **not clipped during PI feature construction**. Values above 1 retain the magnitude of limit exceedance.
 
-Corresponding study components: Supplementary Text S1, Table S1, and Fig. S1.
+</details>
 
-02_process_features.py
-Constructs the wastewater-process-informed state representation used for
-baseline learning.
+<details>
+<summary><b>03_model_benchmark.py — Baseline model benchmark</b></summary>
 
-The engineered descriptors represent complementary aspects of the pre-dosing
-process state, including:
+Benchmarks eight regression model families:
 
-hydraulic scale and low-flow pressure;
+- Linear Regression
+- Decision Tree
+- Support Vector Regression
+- K-Nearest Neighbors
+- Random Forest
+- Gradient Boosting Regression
+- Deep Neural Network
+- Long Short-Term Memory network
 
-apparent carbon-nitrogen limitation;
+The analysis evaluates the benefit of process-informed representation across different model families and supports selection of the final process-informed GBR baseline model.
 
-delayed nitrogen-safety feedback;
+</details>
 
-influent nitrogen pressure relative to sludge-associated support.
+<details>
+<summary><b>04_shap_attribution.py — SHAP interpretation</b></summary>
 
-The feature-construction layer uses information available at the dosing-decision
-time and preserves the process meaning of the original operational variables.
+Performs SHAP-based interpretation of the final process-informed GBR model.
 
-Boundary-relative nitrogen descriptors are not clipped during PI feature
-construction, so values above the plant limit retain the magnitude of the
-exceedance.
+The analysis includes:
 
-Corresponding study components: Supplementary Text S2, Table S2, and Fig. S2.
+- global attribution;
+- feature-importance ranking;
+- sample-level attribution;
+- interpretation of process-informed descriptors.
 
-03_model_benchmark.py
-Benchmarks the baseline-reconstruction performance of multiple regression model
-families using the predefined temporal validation protocol.
+SHAP results are used as model-attribution diagnostics and are not interpreted as independent causal evidence.
 
-The comparison includes:
+</details>
 
-Linear Regression;
+<details>
+<summary><b>05_robustness_vfc.py — Robustness and Virtual Flow Checking</b></summary>
 
-Decision Tree;
-
-Support Vector Regression;
-
-K-Nearest Neighbors;
-
-Random Forest;
-
-Gradient Boosting Regression;
-
-Deep Neural Network;
-
-Long Short-Term Memory network.
-
-The analysis compares model performance under the predefined original and
-process-informed representations and supports selection of the final
-process-informed GBR model.
-
-Corresponding study components: Supplementary Text S3, Table S3, and Fig. S3.
-
-04_shap_attribution.py
-Performs SHAP-based interpretation of the final process-informed GBR baseline
-model.
-
-The analysis provides:
-
-global feature attribution;
-
-feature-importance ranking;
-
-sample-level attribution analysis;
-
-interpretation of the contribution of process-informed descriptors.
-
-SHAP values are used as model-attribution diagnostics rather than as evidence of
-causal process relationships.
-
-Corresponding study components: Supplementary Text S4 and Figs. S4-S5.
-
-05_robustness_vfc.py
-Evaluates model sensitivity to abnormal pre-dosing inputs and implements the
-Virtual Flow Checking (VFC) reliability analysis.
+Evaluates model sensitivity to abnormal pre-dosing inputs and implements the VFC reliability analysis.
 
 The module includes:
 
-grouped input perturbation;
+- grouped input perturbation;
+- raw-input zeroing tests;
+- global multivariable random bidirectional perturbation;
+- recalculation of dependent PI features after perturbation;
+- comparison of VFC lag configurations;
+- isolated `TREAT_FLOW` anomaly tests;
+- comparison with and without VFC;
+- flow-amplitude anomaly analysis;
+- VFC reliability-trigger assessment.
 
-raw-input zeroing tests;
+Global perturbation represents broader multivariable deterioration, whereas isolated treated-flow perturbation represents the intended VFC application scenario.
 
-global multivariable random bidirectional perturbation;
+Measured treated flow remains the primary hydraulic input under normal conditions.
 
-recalculation of dependent process-informed features after perturbation;
+</details>
 
-comparison of alternative VFC lag configurations;
+<details>
+<summary><b>06_quantile_gbr.py — Historical-domain diagnostic</b></summary>
 
-isolated TREAT_FLOW anomaly experiments;
+Constructs three Quantile-GBR models:
 
-comparison of model performance with and without VFC;
+- P20
+- P50
+- P80
 
-flow-amplitude anomaly analysis;
+The resulting P20-P80 envelope is used to evaluate whether the reconstructed baseline remains consistent with the historical operator-response domain.
 
-VFC reliability-trigger assessment.
+The quantile models are **diagnostic rather than prescriptive** and do not directly determine the final KBDC adjustment.
 
-Global multivariable perturbation is used to characterize broader input
-deterioration, whereas isolated treated-flow perturbation represents the intended
-VFC application scenario.
+</details>
 
-VFC is used as a reliability safeguard rather than as an unconditional substitute
-for measured treated flow.
+<details>
+<summary><b>07_kbdc_sequential_control.py — Sequential KBDC control</b></summary>
 
-Corresponding study components: Supplementary Text S6, Table S4 Panel A,
-and Figs. S6-S9.
+Implements the main KBDC decision workflow.
 
-06_quantile_gbr.py
-Implements Quantile Gradient Boosting Regression for historical-domain
-consistency diagnostics.
+The sequential logic includes:
 
-Three conditional quantile models are constructed:
+- VFC / QC reliability assessment;
+- confirmed operational input;
+- process-informed state reconstruction;
+- GBR baseline reconstruction;
+- Quantile-GBR plausibility checking;
+- nitrogen-risk scoring;
+- Reduce / Retain / Protect decision branches;
+- continuity correction;
+- daily recommendation recording;
+- weekly posterior feedback;
+- next-week parameter adaptation.
 
-P20
-P50
-P80
-The resulting P20-P80 envelope is used to assess whether a reconstructed
-historical baseline remains consistent with the historical operator-response
-domain.
+Historical operator dosing is used as a conservative safety anchor rather than as an assumed optimal dose.
 
-The quantile models provide a diagnostic envelope and do not directly determine
-the final KBDC dose.
+Weekly posterior information affects the **following week only** and does not retrospectively alter recommendations already generated.
 
-Corresponding study component: Supplementary Text S5.
+</details>
 
-07_kbdc_sequential_control.py
-Implements the sequential KBDC recommendation workflow.
+<details>
+<summary><b>08_knn_validation.py — Historical reference and validation</b></summary>
 
-The daily workflow integrates:
+Constructs a KNN-matched historical reference for the prospective validation period.
 
-Pre-dosing operational state
-        ↓
-VFC / QC reliability assessment
-        ↓
-Confirmed operational input
-        ↓
-Process-informed descriptors
-        ↓
-GBR baseline reconstruction
-        ↓
-Historical-domain diagnostic
-        ↓
-Nitrogen-risk scoring
-        ↓
-Reduce / Retain / Protect branch
-        ↓
-Continuity correction
-        ↓
-Final KBDC recommendation
-        ↓
-Daily state recording
-The control logic uses the reconstructed historical operator dose as a
-conservative safety anchor.
+The procedure includes:
 
-Depending on nitrogen risk and input reliability, KBDC can:
+- validation-excluded historical-library construction;
+- preprocessing using historical-library statistics;
+- weighted distance calculation;
+- K-nearest-neighbor matching;
+- K = 5 historical reference construction;
+- similarity calculation;
+- historical dosing reference;
+- matched historical nitrogen reference;
+- nearest-neighbor safety diagnostics.
 
-Reduce the conservative margin under sufficiently safe conditions;
+The KNN reference provides an operationally comparable historical benchmark rather than an optimization target.
 
-Retain the reconstructed baseline when additional reduction is not justified;
+</details>
 
-Protect the process through a bounded upward adjustment under elevated risk.
+---
 
-Input reliability is checked before dosing adjustment. When a treated-flow
-anomaly is flagged, field QC or operator confirmation can retain, correct, or
-leave the input unresolved.
+## Environment
 
-Unresolved flow uncertainty restricts carbon reduction rather than independently
-triggering protective addition.
+The released code was prepared using:
 
-The script also implements weekly posterior feedback. Effluent nitrogen outcomes
-from a completed week are used only to update the control parameters for the
-following week; they do not retrospectively alter recommendations that were
-already issued.
-
-Corresponding study components: Supplementary Texts S7-S8, Table S4 Panel B,
-Table S5, Algorithm S1, and Algorithm S2.
-
-08_knn_validation.py
-Implements the KNN-matched historical reference used for prospective
-field-validation analysis.
-
-The historical reference procedure includes:
-
-construction of the validation-excluded historical library;
-
-preprocessing of matching variables using historical-library statistics;
-
-weighted distance calculation;
-
-K-nearest-neighbor matching;
-
-K = 5 historical reference construction;
-
-similarity calculation;
-
-historical dosing reference;
-
-matched historical nitrogen reference;
-
-nearest-neighbor safety diagnostics.
-
-The KNN reference provides an operationally comparable historical benchmark for
-the prospective validation period rather than an optimization target.
-
-Corresponding study components: Supplementary Text S9, Table S6,
-Algorithm S3, Fig. S10, and the associated field-validation analyses in Text S10.
-
-Environment
-The public code was prepared using:
-
+```text
 Python 3.13.7
-Install the required Python packages with:
+```
 
+Install the required packages with:
+
+```bash
 pip install -r requirements.txt
-The package versions used for the released analyses are specified in
-requirements.txt.
+```
 
-Quick start
+The package versions used for the analyses are listed in `requirements.txt`.
+
+---
+
+## Quick start
+
 Clone the repository:
 
+```bash
 git clone https://github.com/Liu-qing5/KBDC-WWTP.git
 cd KBDC-WWTP
+```
+
 Install dependencies:
 
+```bash
 pip install -r requirements.txt
-The available command-line options for each script can be inspected using:
+```
 
+Inspect the available options for each script:
+
+```bash
 python 01_preprocessing.py --help
 python 02_process_features.py --help
 python 03_model_benchmark.py --help
@@ -360,183 +332,156 @@ python 05_robustness_vfc.py --help
 python 06_quantile_gbr.py --help
 python 07_kbdc_sequential_control.py --help
 python 08_knn_validation.py --help
-Recommended execution order
+```
+
+---
+
+## Recommended workflow
+
 For retrospective model development and analysis:
 
+```bash
 python 01_preprocessing.py
 python 02_process_features.py
 python 03_model_benchmark.py
 python 04_shap_attribution.py
 python 05_robustness_vfc.py
 python 06_quantile_gbr.py
-The KBDC control and validation stages are handled separately because they
-involve sequential operational states, QC information, and posterior feedback.
+```
 
-Sequential KBDC operation
-07_kbdc_sequential_control.py supports the sequential recommendation workflow.
+The KBDC control and validation stages are implemented separately because they involve sequential operational states, reliability information, and posterior feedback.
 
-Daily / prospective recommendation
+---
+
+## Sequential KBDC operation
+
+### Daily recommendation
+
+```bash
 python 07_kbdc_sequential_control.py recommend --input <input_file>
-This mode generates KBDC recommendations using only the information available at
-the dosing-decision stage.
+```
 
-Weekly closure and feedback
+Generates KBDC recommendations using information available at the dosing-decision stage.
+
+### Weekly closure and feedback
+
+```bash
 python 07_kbdc_sequential_control.py close-week --week-file <completed_week_file>
-This mode reads posterior weekly nitrogen outcomes and updates the control state
-for the following week.
+```
 
-Retrospective sequential replay
+Uses completed-week posterior nitrogen outcomes to update the control state for the following week.
+
+### Sequential replay
+
+```bash
 python 07_kbdc_sequential_control.py replay --input <validation_file> --reset-state --week-size 7
-This mode sequentially replays a validation trajectory while preserving the
-daily decision order and weekly feedback boundary.
+```
 
-KNN historical-reference analysis
-The historical-reference and field-validation analysis is implemented in:
+Replays a validation trajectory while preserving the daily decision order and weekly feedback boundary.
 
-python 08_knn_validation.py --help
-The analysis requires the corresponding historical modelling library and
-prospective validation data.
+---
 
-Important implementation principles
-1. Decision-time information boundary
+## Important implementation principles
+
+### Decision-time information boundary
+
 Baseline learning uses only information available at the dosing-decision time.
 
-Same-day influent, hydraulic, and sludge-state information can describe the
-pre-dosing state, while effluent nitrogen information enters the predictive and
-control workflow only as delayed feedback where appropriate.
+Same-day influent, hydraulic, and sludge-state measurements describe the pre-dosing state, while effluent nitrogen information enters the predictive and control workflow as delayed feedback where appropriate.
 
-Same-day posterior effluent outcomes are reserved for validation and subsequent
-feedback.
+Same-day posterior effluent outcomes are reserved for validation and subsequent feedback.
 
-2. Chronological rather than random validation
+### Chronological validation
+
 The historical operational trajectory is treated as time-series process data.
 
-Data partitioning is chronological, and preprocessing parameters derived from
-training data are fixed before application to later data.
+Data partitioning is chronological rather than random, and preprocessing statistics derived from training data are fixed before application to later data.
 
-This prevents information from future observations from leaking into model
-development.
+### Reconstruction after perturbation
 
-3. Process-informed descriptors are reconstructed after perturbation
-During robustness analysis, perturbing a raw operational input can alter multiple
-dependent process-informed descriptors.
+When a raw operational input is perturbed during robustness analysis, all dependent process-informed descriptors are recalculated.
 
-These dependent descriptors are therefore recalculated after perturbation rather
-than being treated as independent columns.
+This preserves the structural relationships of the original process representation.
 
-4. PI feature construction and KBDC risk scoring are different layers
-Boundary-relative nitrogen descriptors used by the process-informed baseline
-model retain their original magnitude during feature construction.
+### PI feature layer versus KBDC risk layer
 
-For example, a value above the plant limit may remain greater than 1 in the
-PI-GBR representation.
+Boundary-relative nitrogen descriptors used by the PI baseline model retain their original magnitude.
 
-Clipping to the interval [0, 1] is applied only when the corresponding
-information enters the bounded KBDC risk-scoring layer.
+Values above 1 are therefore allowed during PI feature construction.
 
-5. VFC is a reliability safeguard
-Measured TREAT_FLOW remains the primary hydraulic input under normal
-conditions.
+Clipping to `[0, 1]` is applied only when the corresponding information enters the bounded KBDC risk-scoring layer.
 
-VFC is activated as a reliability safeguard when the measured flow is missing,
-outside the predefined reliability domain, or shows sufficiently large
-disagreement with the virtual-flow estimate.
+### VFC as a reliability safeguard
 
-A VFC trigger does not by itself imply that the virtual estimate should
-automatically replace the measured value. Field QC and operator confirmation are
-part of the reliability-resolution process.
+VFC is not used as an unconditional replacement for measured `TREAT_FLOW`.
 
-6. Quantile-GBR is diagnostic rather than prescriptive
-The P20-P80 Quantile-GBR envelope is used to evaluate historical-domain
-plausibility.
+Measured flow remains the primary input when no reliability trigger is activated.
 
-It does not directly calculate the amount of carbon-dose reduction or protective
-addition.
+When a reliability issue is detected, field QC or operator confirmation can retain, correct, or leave the input unresolved.
 
-Final KBDC adjustment is determined by the risk-constrained control layer.
+Unresolved flow uncertainty restricts dose reduction rather than independently activating protective addition.
 
-7. Weekly feedback is forward-only
-Posterior weekly effluent information is used to update the control state for the
-next week.
+### Quantile-GBR as a diagnostic tool
 
-The update does not retrospectively alter recommendations already generated in
-the completed week.
+The P20-P80 Quantile-GBR envelope evaluates historical-domain plausibility.
 
-Data
-The study contains two temporally separated datasets:
+It does not directly determine the reduction or protective-addition magnitude.
 
-a historical operational trajectory used for model development and historical
-reference construction;
+### Forward-only weekly feedback
 
-an isolated prospective field-validation period used for sequential KBDC
-evaluation.
+Weekly posterior nitrogen information updates the control state for the next week only.
 
-The historical record covers 652 consecutive daily observations, followed by a
-28-day prospective validation period that was excluded from model fitting and
-historical-reference construction.
+Completed-week recommendations are not retrospectively modified.
 
-Data files used for the public analyses should be placed under the data/
-directory according to the input paths specified by the corresponding scripts.
+---
 
-Detailed variable definitions, units, decision-time availability, preprocessing
-rules, and analytical roles are provided in the manuscript and Supplementary
-Information.
+## Data
 
-Reproducibility
-The repository is intended to provide the principal computational procedures
-used in the study, including:
+The study uses two temporally separated datasets:
 
-leakage-aware preprocessing;
+- a historical operational trajectory used for model development and historical-reference construction;
+- an isolated prospective field-validation period used for sequential KBDC evaluation.
 
-process-informed state construction;
+The historical dataset contains **652 consecutive daily records**, followed by a **28-day prospective field-validation period** that was isolated from model fitting and historical-reference construction.
 
-baseline model benchmarking;
+Data files used by the released analyses should be placed under the `data/` directory according to the input paths defined in the corresponding scripts.
 
-SHAP attribution;
+Detailed variable definitions, units, decision-time availability, preprocessing rules, and analytical roles are provided in the manuscript and Supplementary Information.
 
-perturbation robustness analysis;
+---
 
-VFC reliability assessment;
+## Reproducibility
 
-Quantile-GBR diagnostics;
+The repository provides the principal computational procedures used in the study:
 
-sequential KBDC control;
+- leakage-aware preprocessing;
+- process-informed state construction;
+- baseline model benchmarking;
+- SHAP attribution;
+- perturbation robustness analysis;
+- VFC reliability assessment;
+- Quantile-GBR diagnostics;
+- sequential KBDC control;
+- weekly feedback;
+- KNN historical-reference construction;
+- field-validation analysis.
 
-weekly feedback;
+Random seeds and model configurations are fixed in the corresponding scripts where applicable.
 
-KNN historical-reference construction;
+Because the field-control and validation stages depend on sequential operational information, QC states, and posterior feedback, the repository is organized as modular analysis stages rather than as a single fully unattended reproduction script.
 
-field-validation analysis.
+---
 
-Random seeds and model configurations are fixed in the corresponding scripts
-where applicable.
+## Citation
 
-Because field-control and validation stages involve sequential operational data,
-reliability states, and posterior feedback, the code is provided as modular
-analysis stages rather than as a single fully unattended reproduction script.
-
-Relationship to the manuscript
-The public code is organized to follow the scientific structure of the
-Supplementary Information:
-
-Code	Main purpose	Manuscript / SI component
-01_preprocessing.py	Leakage-aware data preparation	Text S1
-02_process_features.py	Process-informed state representation	Text S2
-03_model_benchmark.py	Baseline learning and model comparison	Text S3
-04_shap_attribution.py	Model attribution	Text S4
-06_quantile_gbr.py	Historical-domain diagnostic	Text S5
-05_robustness_vfc.py	Robustness and VFC	Text S6
-07_kbdc_sequential_control.py	Risk-constrained dosing and weekly feedback	Texts S7-S8
-08_knn_validation.py	Historical reference and validation	Texts S9-S10
-Citation
 If you use this repository, please cite the associated manuscript:
 
-Knowledge-embedded learning of conservative human dosing baselines for
-risk-constrained carbon optimization in wastewater nitrogen removal
+> **Expert Prior Knowledge Embedded Machine Learning for Carbon Source Optimization in Wastewater Treatment Systems**
 
 The complete journal citation and DOI will be added after publication.
 
-Contact
-For questions regarding the scientific methodology, data interpretation, or
-implementation of KBDC, please refer to the corresponding authors listed in the
-associated manuscript.
+---
+
+## Contact
+
+For questions regarding the methodology, data interpretation, or KBDC implementation, please refer to the corresponding authors listed in the associated manuscript.
