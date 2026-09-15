@@ -110,7 +110,7 @@ The workflow is implemented as **modular research scripts**, rather than as a si
 | `07_kbdc_sequential_control.py` | Sequential KBDC control and weekly feedback |
 | `08_knn_validation.py` | KNN historical reference and field-validation analysis |
 | `requirements.txt` | Python dependencies used by the released code |
-| `data/` | Input data used by the corresponding analysis scripts |
+| `data/` | Local input-data directory; operational data are not included in the public repository |
 
 ---
 
@@ -447,6 +447,8 @@ The historical dataset contains **652 consecutive daily records**, followed by a
 Data files used by the released analyses should be placed under the `data/` directory according to the input paths defined in the corresponding scripts.
 
 Detailed variable definitions, units, decision-time availability, preprocessing rules, and analytical roles are provided in the manuscript and Supplementary Information.
+
+The public repository contains the analysis code; operational data are available upon request.
 
 ---
 
